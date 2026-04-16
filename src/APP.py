@@ -48,7 +48,7 @@ with col2:
         if st.button("🔗 Connect to Legal Database", use_container_width=True):
             try:
                 # simple health check
-                res = requests.get("http://localhost:8000/")
+                res = requests.get("http://3.25.63.26:8000/")
                 if res.status_code == 200:
                     st.session_state.db_connected = True
                     st.success("✅ Connected to backend!")
