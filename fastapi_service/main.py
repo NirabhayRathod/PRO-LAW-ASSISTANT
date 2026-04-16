@@ -15,7 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate
 load_dotenv()
 
 #  Config
-FAISS_PATH = os.getenv("FAISS_PATH", "../airflow/faiss_index")
+FAISS_PATH = os.getenv("FAISS_PATH", "../src/faiss_index")
 groq_api_key = os.getenv("GROQ_API_KEY")
 
 if not groq_api_key:
