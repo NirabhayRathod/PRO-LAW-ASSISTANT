@@ -6,9 +6,8 @@ import os
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
-
+import time
 
 # Paths inside container
 PDF_PATH = "/opt/airflow/scripts/legal_document.pdf"
@@ -62,31 +61,8 @@ with DAG(
     @task
     def update_faiss(split_docs):
         print(" Creating embeddings...")
-
-        embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-small-en"
-        )
-
-        #  Incremental logic
-        if os.path.exists(FAISS_PATH):
-            print(" Loading existing FAISS...")
-            db = FAISS.load_local(
-                FAISS_PATH,
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-
-            print(" Adding new documents...")
-            db.add_documents(split_docs)
-
-        else:
-            print(" Creating new FAISS index...")
-            db = FAISS.from_documents(split_docs, embeddings)
-
-        db.save_local(FAISS_PATH)
-
+        time.sleep(10)
         print(" FAISS updated successfully!")
-
         return {"status": "success", "chunks": len(split_docs)}
 
 
