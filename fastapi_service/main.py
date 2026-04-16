@@ -2,22 +2,55 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import os
+from dotenv import load_dotenv
 
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
+from langchain_groq import ChatGroq
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
 
-FAISS_PATH = "../airflow/faiss_index"
+#  Load env
+load_dotenv()
 
-#  Load embedding
+#  Config
+FAISS_PATH = os.getenv("FAISS_PATH", "../airflow/faiss_index")
+groq_api_key = os.getenv("GROQ_API_KEY")
+
+if not groq_api_key:
+    raise ValueError("GROQ_API_KEY not found")
+
+#  Embedding
 embedding = HuggingFaceEmbeddings(
     model_name="BAAI/bge-small-en"
 )
 
-#  Global DB
+#  LLM
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    groq_api_key=groq_api_key
+)
+
+#  Prompt
+prompt = ChatPromptTemplate.from_template(
+    """You are a knowledgeable legal assistant specializing in Indian laws.
+
+Answer the question using ONLY the provided context.
+
+Context:
+{context}
+
+Question:
+{input}
+
+Give a clear, professional answer:"""
+)
+
+#  DB
 db = None
 
 
-# Lifespan handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global db
@@ -35,35 +68,37 @@ async def lifespan(app: FastAPI):
 
     print("FAISS loaded!")
 
-    yield  # app runs here
-
-    print(" Shutting down...")
+    yield
 
 
-#  Create app with lifespan
 app = FastAPI(lifespan=lifespan)
 
 
-# Request schema
 class Query(BaseModel):
     text: str
 
 
 @app.get("/")
 def home():
-    return {"message": "RAG API running "}
+    return {"message": "RAG API running"}
 
 
 @app.post("/query")
 def query(data: Query):
     global db
 
-    retriever = db.as_retriever(search_kwargs={"k": 3})
-    docs = retriever.get_relevant_documents(data.text)
+    try:
+        retriever = db.as_retriever(search_kwargs={"k": 3})
 
-    results = [doc.page_content for doc in docs]
+        doc_chain = create_stuff_documents_chain(llm, prompt)
+        retrieval_chain = create_retrieval_chain(retriever, doc_chain)
 
-    return {
-        "query": data.text,
-        "results": results
-    }
+        response = retrieval_chain.invoke({"input": data.text})
+
+        return {
+            "query": data.text,
+            "answer": response["answer"]
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
