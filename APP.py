@@ -157,7 +157,7 @@ st.markdown('<div class="sub-header">Your Intelligent Legal Research Partner •
 
 # Load environment variables
 load_dotenv()
-groq_api_key =os.getenv('GROQ_API_KEY')
+groq_api_key =st.secrets["VAR_NAME"]
 
 if not groq_api_key:
     st.error("❌ GROQ_API_KEY not found in environment variables")
